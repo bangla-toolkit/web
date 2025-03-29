@@ -19,5 +19,9 @@ export const PGLiteContextProvider = (props: { children: React.ReactNode }) => {
     initialize();
   }, []);
 
+  if (!db) {
+    return <body>Loading...</body>;
+  }
+
   return <PGliteProvider db={db}>{props.children}</PGliteProvider>;
 };

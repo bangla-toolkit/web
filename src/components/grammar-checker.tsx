@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { tokenizeToWords } from "@bntk/tokenization";
 import { transliterate } from "@bntk/transliteration";
 import { stemWord, stemWords } from "@bntk/stemming";
@@ -48,13 +48,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@bntk/components/ui/dialog";
+import { useLiveQuery, usePGlite } from "@electric-sql/pglite-react";
+import { Repl } from '@electric-sql/pglite-repl'
+import { PGliteWithLive } from "@electric-sql/pglite/live";
 
 // Sample texts for each tab
 const sampleTexts = {
   grammar:
     "ami ajke bazar jabo ebong ki kinbo jani na. eta ekta lomba din hobe.",
   spelling:
-    "Ami tomader bashay jabo. Kintu ami janina kothay tomar basha. Tumi ki amake thikana dite parbe?",
+    "আমি তমাদের বাশায় জাব। কিন্তু আমি জানিনা কথায় তমার বাশা। টুমি কি আমাকে থিকানা দিতে পারবে?",
   tokenization:
     "আমি বাংলাদেশে থাকি। আমার দেশের নাম বাংলাদেশ। এটি একটি সুন্দর দেশ।",
   stemming: "খেলছি পড়েছি লিখেছি হাঁটছি দেখছি শুনছি বলছি",
@@ -63,12 +66,158 @@ const sampleTexts = {
   transliteration: "amar sOnar bangla ami tOmay bhalObasi.",
 };
 
+interface WordRow {
+  value: string;
+}
+
+interface WordSimilarity {
+  word: string;
+  similarity: number;
+}
+
+// Function to calculate Levenshtein distance between two strings
+const levenshteinDistance = (str1: string, str2: string): number => {
+  const m = str1.length;
+  const n = str2.length;
+  const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
+
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (str1[i - 1] === str2[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1];
+      } else {
+        dp[i][j] = Math.min(
+          dp[i - 1][j - 1] + 1, // substitution
+          dp[i - 1][j] + 1,     // deletion
+          dp[i][j - 1] + 1      // insertion
+        );
+      }
+    }
+  }
+
+  return dp[m][n];
+};
+
+// Function to get character trigrams for a word
+const getTrigramsVector = (word: string): number[] => {
+  const trigrams = new Set<string>();
+  const paddedWord = `##${word}##`;
+  
+  for (let i = 0; i < paddedWord.length - 2; i++) {
+    trigrams.add(paddedWord.slice(i, i + 3));
+  }
+  
+  // Create a fixed-size vector (can be adjusted based on your needs)
+  const vector = new Array(300).fill(0);
+  Array.from(trigrams).forEach((trigram, i) => {
+    // Simple hash function to map trigram to vector index
+    const index = Math.abs(trigram.split('').reduce((acc, char) => 
+      acc + char.charCodeAt(0), 0) % vector.length);
+    vector[index] = 1;
+  });
+  
+  return vector;
+};
+
+// Function to calculate cosine similarity between two vectors
+const cosineSimilarity = (vec1: number[], vec2: number[]): number => {
+  let dotProduct = 0;
+  let norm1 = 0;
+  let norm2 = 0;
+  
+  for (let i = 0; i < vec1.length; i++) {
+    dotProduct += vec1[i] * vec2[i];
+    norm1 += vec1[i] * vec1[i];
+    norm2 += vec2[i] * vec2[i];
+  }
+  
+  return dotProduct / (Math.sqrt(norm1) * Math.sqrt(norm2));
+};
+
+// Function to find similar words for suggestions
+const findSimilarWords = async (db: any, word: string) => {
+  const wordLength = word.length;
+  const lengthDiff = Math.ceil(wordLength * 0.3); // Allow 30% length difference
+  
+  // Use pg_trgm's similarity function
+  const candidates = await db.query(`
+    SELECT value, 
+           similarity(value, $1) as similarity_score
+    FROM words 
+    WHERE LENGTH(value) BETWEEN $2 AND $3
+    AND value != $1
+    AND similarity(value, $1) > 0.3
+    ORDER BY similarity_score DESC, LENGTH(value)
+    LIMIT 5
+  `, [
+    word.toLowerCase(),
+    Math.max(1, wordLength - lengthDiff),
+    wordLength + lengthDiff
+  ]);
+
+  return candidates.rows.map((row: any) => row.value);
+};
+
+// Function to check if a word exists in dictionary
+const checkWord = async (db: any, word: string) => {
+  const result = await db.query(`
+    SELECT EXISTS (
+      SELECT 1 
+      FROM words 
+      WHERE value = $1
+    )
+  `, [word.toLowerCase()]);
+  return result.rows[0].exists;
+};
+
+const MyComponent = ({ search }: { search: string }) => {
+  const db = usePGlite();
+
+  const items = useLiveQuery(`
+    SELECT *
+    FROM words
+    WHERE value like $1
+    limit 10
+  `, [search])
+
+  return (
+      <div className="flex flex-row flex-wrap gap-2">
+        {items?.rows.map((row: any) => (
+          <div key={row.id} className="bg-slate-100 dark:bg-slate-800 p-2 rounded-md">
+            {row.value}
+          </div>
+        ))}
+      </div>
+  )
+}
+
 export default function GrammarChecker() {
   const [text, setText] = useState("");
   const [activeTab, setActiveTab] = useState("grammar");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [results, setResults] = useState<any>(null);
   const [wordCount, setWordCount] = useState({ words: 0, chars: 0 });
+  const debouncedText = useDebounce(text, 100);
+  const db = usePGlite();
+
+  // Initialize pg_trgm extension
+  useEffect(() => {
+    const initPgTrgm = async () => {
+      try {
+        // Enable pg_trgm extension
+        await db.query(`CREATE EXTENSION IF NOT EXISTS pg_trgm;`);
+      } catch (error) {
+        console.error('Error initializing pg_trgm:', error);
+      }
+    };
+
+    if (db) {
+      initPgTrgm().catch(console.error);
+    }
+  }, [db]);
 
   const handleTextChange = (value: string) => {
     setText(value);
@@ -92,17 +241,42 @@ export default function GrammarChecker() {
     setResults(null);
   };
 
-  const analyzeText = () => {
+  const analyzeText = async () => {
     if (!text.trim()) return;
 
     setIsAnalyzing(true);
 
-    // Simulate API call with timeout
-    setTimeout(() => {
+    try {
       // Mock results based on active tab
       let mockResults;
 
       switch (activeTab) {
+        case "spelling": {
+          const words = tokenizeToWords(text);
+          const misspellings = [];
+
+          for (const word of words) {
+            const exists = await checkWord(db, word);
+            if (!exists) {
+              const suggestions = await findSimilarWords(db, word);
+              misspellings.push({
+                word,
+                suggestions,
+                index: text.indexOf(word)
+              });
+            }
+          }
+
+          mockResults = {
+            misspellings
+          };
+          break;
+        }
+        case "tokenization":
+          mockResults = {
+            tokens: tokenizeToWords(text),
+          };
+          break;
         case "grammar":
           mockResults = {
             corrections: [
@@ -122,42 +296,6 @@ export default function GrammarChecker() {
                 type: "apostrophe",
               },
             ],
-          };
-          break;
-        case "spelling":
-          mockResults = {
-            misspellings: [
-              {
-                word: "recieved",
-                suggestions: ["received"],
-                index: text.indexOf("recieved"),
-              },
-              {
-                word: "mesage",
-                suggestions: ["message"],
-                index: text.indexOf("mesage"),
-              },
-              {
-                word: "accomodation",
-                suggestions: ["accommodation"],
-                index: text.indexOf("accomodation"),
-              },
-              {
-                word: "definately",
-                suggestions: ["definitely"],
-                index: text.indexOf("definately"),
-              },
-              {
-                word: "tommorow",
-                suggestions: ["tomorrow"],
-                index: text.indexOf("tommorow"),
-              },
-            ],
-          };
-          break;
-        case "tokenization":
-          mockResults = {
-            tokens: tokenizeToWords(text),
           };
           break;
         case "stemming":
@@ -231,7 +369,10 @@ export default function GrammarChecker() {
 
       setResults(mockResults);
       setIsAnalyzing(false);
-    }, 1000);
+    } catch (error) {
+      console.error("Error analyzing text: ", error);
+      setIsAnalyzing(false);
+    }
   };
 
   const handleTabChange = (value: string) => {
@@ -539,9 +680,37 @@ export default function GrammarChecker() {
             ))}
 
             {renderResults()}
+            {/* <MyComponent search={`${tokenizeToWords(transliterate(debouncedText)).pop()}%`} /> */}
+            <MyComponentRepl pg={db} />
           </Tabs>
         </CardContent>
       </Card>
     </TooltipProvider>
   );
+}
+
+function useDebounce(value: string, delay: number) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedValue(value), delay);
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
+function MyComponentRepl({ pg }: { pg: PGliteWithLive }) {
+  const db = usePGlite();
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+  
+  if (!isClient) return null;
+  return (
+   <Suspense>
+    <Repl pg={db} />
+   </Suspense>
+  )
 }

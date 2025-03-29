@@ -1,6 +1,8 @@
 import { IdbFs, PGlite } from "@electric-sql/pglite";
 import { live, PGliteWithLive } from "@electric-sql/pglite/live";
 import schemaContent from "./schema.sql";
+import { pg_trgm } from '@electric-sql/pglite/contrib/pg_trgm';
+import { fuzzystrmatch } from '@electric-sql/pglite/contrib/fuzzystrmatch';
 
 let dbClientInstance: PGliteWithLive;
 
@@ -8,7 +10,8 @@ export async function getDbClient() {
   if (!dbClientInstance) {
     dbClientInstance = await PGlite.create({
       fs: new IdbFs("bntk-client"),
-      extensions: { live },
+      extensions: { live, pg_trgm, fuzzystrmatch },
+      relaxedDurability: true,
     });
   }
   return dbClientInstance;
