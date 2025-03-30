@@ -1,5 +1,5 @@
 import { IdbFs, PGlite } from "@electric-sql/pglite";
-import { live, PGliteWithLive } from "@electric-sql/pglite/live";
+import { live, type PGliteWithLive } from "@electric-sql/pglite/live";
 import schemaContent from "./schema.sql";
 
 let dbClientInstance: PGliteWithLive;
