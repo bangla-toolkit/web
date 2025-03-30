@@ -1,45 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { tokenizeToWords } from "@bntk/tokenization";
-import { transliterate } from "@bntk/transliteration";
-import { stemWord, stemWords } from "@bntk/stemming";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@bntk/components/ui/tabs";
-import { Button } from "@bntk/components/ui/button";
-import { Card, CardContent } from "@bntk/components/ui/card";
-import TextInput from "@bntk/components/text-input";
 import GrammarResults from "@bntk/components/grammar-results";
-import SpellCheckResults from "@bntk/components/spell-check-results";
-import TokenizationResults from "@bntk/components/tokenization-results";
-import StemmingResults from "@bntk/components/stemming-results";
 import NerResults from "@bntk/components/ner-results";
 import PosResults from "@bntk/components/pos-results";
+import SpellCheckResults from "@bntk/components/spell-check-results";
+import StemmingResults from "@bntk/components/stemming-results";
+import TextInput from "@bntk/components/text-input";
+import TokenizationResults from "@bntk/components/tokenization-results";
 import TransliterationResults from "@bntk/components/transliteration-results";
-import {
-  Sparkles,
-  Wand2,
-  Check,
-  SplitSquareVertical,
-  GitBranchPlus,
-  User,
-  AlignJustify,
-  Copy,
-  RefreshCw,
-  HelpCircle,
-  Languages,
-} from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@bntk/components/ui/tooltip";
 import { Badge } from "@bntk/components/ui/badge";
+import { Button } from "@bntk/components/ui/button";
+import { Card, CardContent } from "@bntk/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -48,6 +19,35 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@bntk/components/ui/dialog";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@bntk/components/ui/tabs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@bntk/components/ui/tooltip";
+import { stemWord } from "@bntk/stemming";
+import { tokenizeToWords } from "@bntk/tokenization";
+import { transliterate } from "@bntk/transliteration";
+import {
+  AlignJustify,
+  Check,
+  Copy,
+  GitBranchPlus,
+  HelpCircle,
+  Languages,
+  RefreshCw,
+  Sparkles,
+  SplitSquareVertical,
+  User,
+  Wand2,
+} from "lucide-react";
+import { useState } from "react";
 
 // Sample texts for each tab
 const sampleTexts = {
@@ -67,6 +67,7 @@ export default function GrammarChecker() {
   const [text, setText] = useState("");
   const [activeTab, setActiveTab] = useState("grammar");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [results, setResults] = useState<any>(null);
   const [wordCount, setWordCount] = useState({ words: 0, chars: 0 });
 
