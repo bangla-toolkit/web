@@ -1,13 +1,13 @@
 import { IdbFs, PGlite } from "@electric-sql/pglite";
 import { live, type PGliteWithLive } from "@electric-sql/pglite/live";
-import schemaContent from "./schema.sql";
+import { schema } from "./schema";
 
 let dbClientInstance: PGliteWithLive;
 
 export async function getDbClient() {
   if (!dbClientInstance) {
     dbClientInstance = await PGlite.create({
-      fs: new IdbFs("bntk-client"),
+      fs: new IdbFs("bntk-db"),
       extensions: { live },
     });
   }
@@ -16,8 +16,9 @@ export async function getDbClient() {
 
 export async function initDb() {
   const client = await getDbClient();
+
   await client
-    .exec(schemaContent)
+    .exec(schema)
     .then((result) => {
       console.log("Database schema applied successfully:", result);
     })
