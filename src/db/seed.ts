@@ -1,3 +1,4 @@
+import { getBasePath } from "@bntk/utils/basePath";
 import { getDbClient } from ".";
 
 export async function seedDatabase() {
@@ -11,7 +12,10 @@ export async function seedDatabase() {
   if (count === 0) {
     try {
       console.log("Seeding database...");
-      const blob = await fetch("/words.csv").then((res) => res.blob());
+      // Fetch the CSV file from the public directory
+      const blob = await fetch(getBasePath() + "/words.csv").then((res) =>
+        res.blob()
+      );
       await dbClient.query(
         "COPY words FROM '/dev/blob' WITH (FORMAT csv, HEADER);",
         [],

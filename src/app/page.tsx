@@ -1,5 +1,6 @@
 import GrammarChecker from "@bntk/components/grammar-checker";
 import { ThemeToggle } from "@bntk/components/theme-toggle";
+import { getBasePath } from "@bntk/utils/basePath";
 import Image from "next/image";
 
 export default function Home() {
@@ -10,8 +11,8 @@ export default function Home() {
           <div className="flex items-center gap-3 mb-2">
             <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg">
               <Image
-                src="/bangla-toolkit-logo.svg"
-                alt="Bangla Toolkit"
+                src={getBasePath() + "/bangla-toolkit-logo.svg"}
+                alt="Bangla Toolkit Logo"
                 width={40}
                 height={40}
               />
