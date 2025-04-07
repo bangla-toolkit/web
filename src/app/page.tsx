@@ -1,6 +1,6 @@
 import GrammarChecker from "@bntk/components/grammar-checker";
 import { ThemeToggle } from "@bntk/components/theme-toggle";
-import { getBasePath } from "@bntk/utils/basePath";
+import { getBasePath } from "@bntk/helpers/basePath";
 import Image from "next/image";
 
 export default function Home() {

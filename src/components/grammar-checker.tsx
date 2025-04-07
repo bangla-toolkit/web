@@ -31,9 +31,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@bntk/components/ui/tooltip";
+import { SampleTexts } from "@bntk/consts/sample-text";
+import { checkWord } from "@bntk/lib/text-analysis/check-word";
+import { findSimilarWords } from "@bntk/lib/text-analysis/find-simmilar-words";
 import { stemWord } from "@bntk/stemming";
 import { tokenizeToWords } from "@bntk/tokenization";
 import { transliterate } from "@bntk/transliteration";
+import { usePGlite } from "@electric-sql/pglite-react";
 import {
   AlignJustify,
   Check,
@@ -47,21 +51,7 @@ import {
   User,
   Wand2,
 } from "lucide-react";
-import { useState } from "react";
-
-// Sample texts for each tab
-const sampleTexts = {
-  grammar:
-    "ami ajke bazar jabo ebong ki kinbo jani na. eta ekta lomba din hobe.",
-  spelling:
-    "Ami tomader bashay jabo. Kintu ami janina kothay tomar basha. Tumi ki amake thikana dite parbe?",
-  tokenization:
-    "আমি বাংলাদেশে থাকি। আমার দেশের নাম বাংলাদেশ। এটি একটি সুন্দর দেশ।",
-  stemming: "খেলছি পড়েছি লিখেছি হাঁটছি দেখছি শুনছি বলছি",
-  ner: "শেখ হাসিনা ঢাকা বিশ্ববিদ্যালয়ে একটি বক্তৃতা দিয়েছেন। তিনি বাংলাদেশ সরকারের প্রধানমন্ত্রী।",
-  pos: "সুন্দর লাল গোলাপটি বাগানে ফুটে আছে।",
-  transliteration: "amar sOnar bangla ami tOmay bhalObasi.",
-};
+import { useEffect, useState } from "react";
 
 export default function GrammarChecker() {
   const [text, setText] = useState("");
@@ -70,6 +60,23 @@ export default function GrammarChecker() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [results, setResults] = useState<any>(null);
   const [wordCount, setWordCount] = useState({ words: 0, chars: 0 });
+  const db = usePGlite();
+
+  // Initialize pg_trgm extension
+  useEffect(() => {
+    const initPgTrgm = async () => {
+      try {
+        // Enable pg_trgm extension
+        await db.query(`CREATE EXTENSION IF NOT EXISTS pg_trgm;`);
+      } catch (error) {
+        console.error("Error initializing pg_trgm:", error);
+      }
+    };
+
+    if (db) {
+      initPgTrgm().catch(console.error);
+    }
+  }, [db]);
 
   const handleTextChange = (value: string) => {
     setText(value);
@@ -83,9 +90,9 @@ export default function GrammarChecker() {
   };
 
   const loadSampleText = () => {
-    setText(sampleTexts[activeTab as keyof typeof sampleTexts] || "");
+    setText(SampleTexts[activeTab as keyof typeof SampleTexts] || "");
     // Update word count
-    const sampleText = sampleTexts[activeTab as keyof typeof sampleTexts] || "";
+    const sampleText = SampleTexts[activeTab as keyof typeof SampleTexts] || "";
     setWordCount({
       words: sampleText.trim() ? sampleText.trim().split(/\s+/).length : 0,
       chars: sampleText.length,
@@ -93,17 +100,42 @@ export default function GrammarChecker() {
     setResults(null);
   };
 
-  const analyzeText = () => {
+  const analyzeText = async () => {
     if (!text.trim()) return;
 
     setIsAnalyzing(true);
 
-    // Simulate API call with timeout
-    setTimeout(() => {
+    try {
       // Mock results based on active tab
       let mockResults;
 
       switch (activeTab) {
+        case "spelling": {
+          const words = tokenizeToWords(text);
+          const misspellings = [];
+
+          for (const word of words) {
+            const exists = await checkWord(db, word);
+            if (!exists) {
+              const suggestions = await findSimilarWords(db, word);
+              misspellings.push({
+                word,
+                suggestions,
+                index: text.indexOf(word),
+              });
+            }
+          }
+
+          mockResults = {
+            misspellings,
+          };
+          break;
+        }
+        case "tokenization":
+          mockResults = {
+            tokens: tokenizeToWords(text),
+          };
+          break;
         case "grammar":
           mockResults = {
             corrections: [
@@ -123,42 +155,6 @@ export default function GrammarChecker() {
                 type: "apostrophe",
               },
             ],
-          };
-          break;
-        case "spelling":
-          mockResults = {
-            misspellings: [
-              {
-                word: "recieved",
-                suggestions: ["received"],
-                index: text.indexOf("recieved"),
-              },
-              {
-                word: "mesage",
-                suggestions: ["message"],
-                index: text.indexOf("mesage"),
-              },
-              {
-                word: "accomodation",
-                suggestions: ["accommodation"],
-                index: text.indexOf("accomodation"),
-              },
-              {
-                word: "definately",
-                suggestions: ["definitely"],
-                index: text.indexOf("definately"),
-              },
-              {
-                word: "tommorow",
-                suggestions: ["tomorrow"],
-                index: text.indexOf("tommorow"),
-              },
-            ],
-          };
-          break;
-        case "tokenization":
-          mockResults = {
-            tokens: tokenizeToWords(text),
           };
           break;
         case "stemming":
@@ -232,7 +228,10 @@ export default function GrammarChecker() {
 
       setResults(mockResults);
       setIsAnalyzing(false);
-    }, 1000);
+    } catch (error) {
+      console.error("Error analyzing text: ", error);
+      setIsAnalyzing(false);
+    }
   };
 
   const handleTabChange = (value: string) => {
@@ -349,7 +348,7 @@ export default function GrammarChecker() {
                     <div className="space-y-2">
                       <h3 className="font-medium">Available Tools:</h3>
                       <ul className="space-y-2">
-                        {Object.keys(sampleTexts).map((tab) => (
+                        {Object.keys(SampleTexts).map((tab) => (
                           <li key={tab} className="flex items-start gap-2">
                             <div className="mt-0.5">{getTabIcon(tab)}</div>
                             <div>
@@ -387,7 +386,7 @@ export default function GrammarChecker() {
             className="p-6"
           >
             <TabsList className="grid grid-cols-3 md:grid-cols-6 mb-6 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
-              {Object.keys(sampleTexts).map((tab) => (
+              {Object.keys(SampleTexts).map((tab) => (
                 <Tooltip key={tab}>
                   <TooltipTrigger asChild>
                     <TabsTrigger
@@ -411,7 +410,7 @@ export default function GrammarChecker() {
               ))}
             </TabsList>
 
-            {Object.keys(sampleTexts).map((tab) => (
+            {Object.keys(SampleTexts).map((tab) => (
               <TabsContent key={tab} value={tab} className="mt-0 space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-medium capitalize flex items-center">

@@ -1,6 +1,7 @@
 import { IdbFs, PGlite } from "@electric-sql/pglite";
 import { live, type PGliteWithLive } from "@electric-sql/pglite/live";
 import { schema } from "./schema";
+import { pg_trgm } from "@electric-sql/pglite/contrib/pg_trgm";
 
 let dbClientInstance: PGliteWithLive;
 
@@ -8,7 +9,7 @@ export async function getDbClient() {
   if (!dbClientInstance) {
     dbClientInstance = await PGlite.create({
       fs: new IdbFs("bntk-db"),
-      extensions: { live },
+      extensions: { live, pg_trgm },
     });
   }
   return dbClientInstance;

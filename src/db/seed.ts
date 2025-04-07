@@ -1,4 +1,4 @@
-import { getBasePath } from "@bntk/utils/basePath";
+import { getBasePath } from "@bntk/helpers/basePath";
 import { getDbClient } from ".";
 
 export async function seedDatabase() {

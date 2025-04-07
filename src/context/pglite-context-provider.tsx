@@ -7,6 +7,8 @@ import { useEffect, useState } from "react";
 import { type PGliteWithLive } from "@electric-sql/pglite/live";
 import { Progress } from "@bntk/components/ui/progress";
 import { delay } from "@bntk/lib/utils";
+import { getBasePath } from "@bntk/helpers/basePath";
+import Image from "next/image";
 
 export const PGLiteContextProvider = (props: { children: React.ReactNode }) => {
   const [db, setDb] = useState<PGliteWithLive>();
@@ -30,15 +32,25 @@ export const PGLiteContextProvider = (props: { children: React.ReactNode }) => {
 
   if (!db) {
     return (
-      <div className="relative">
-        {props.children}
-        <div className="flex h-screen w-full items-center justify-center bg-gray-50/75 text-gray-500 dark:bg-gray-900 dark:text-gray-400 absolute top-0 left-0 z-50">
-          <div className="flex flex-col items-center justify-center">
-            <Progress value={progress} />
-            <span className="mt-4 text-xl font-medium animate-pulse">
-              Loading The App...
-            </span>
+      <div className="flex h-screen w-full items-center justify-center bg-gray-50/75 text-gray-500 dark:bg-gray-900 dark:text-gray-400">
+        <div className="flex flex-col gap-4 items-center justify-center">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg">
+              <Image
+                src={getBasePath() + "/bangla-toolkit-logo.svg"}
+                alt="Bangla Toolkit Logo"
+                width={80}
+                height={80}
+              />
+            </div>
+            <h1 className="text-2xl md:text-5xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">
+              Bangla Toolkit
+            </h1>
           </div>
+          <Progress value={progress} />
+          <span className="text-xl font-medium animate-pulse">
+            Loading The App...
+          </span>
         </div>
       </div>
     );
