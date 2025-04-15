@@ -13,7 +13,7 @@ export const findSimilarWords = async (db: PGliteWithLive, word: string) => {
   const candidates = await db.query<WordSimilarity>(
     `
         SELECT value, 
-                     similarity(value, $1) as similarity_score
+        similarity(value, $1) as similarity_score
         FROM words 
         WHERE LENGTH(value) BETWEEN $2 AND $3
         AND value != $1
