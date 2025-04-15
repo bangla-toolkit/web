@@ -1,34 +1,27 @@
-import { PGLiteContextProvider } from "@bntk/context/pglite-context-provider";
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Header } from "@bntk/components/header";
+import { ThemeProvider } from "@bntk/components/theme-provider";
 import "./globals.css";
+import { PGLiteContextProvider } from "@bntk/context/pglite-context-provider";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-export const metadata: Metadata = {
+export const metadata = {
   title: "Bangla Toolkit",
   description: "A collection of tools for the Bangla language",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <PGLiteContextProvider>{children}</PGLiteContextProvider>
+    <html lang="en" suppressHydrationWarning>
+      <body>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <PGLiteContextProvider>
+            <Header />
+            <main className="pt-20">{children}</main>
+          </PGLiteContextProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

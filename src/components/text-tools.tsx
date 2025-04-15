@@ -1,24 +1,30 @@
 "use client";
 
-import GrammarResults from "@bntk/components/grammar-results";
-import SpellCheckResults from "@bntk/components/spell-check-results";
+import NerResults from "@bntk/components/ner-results";
+import PosResults from "@bntk/components/pos-results";
+import StemmingResults from "@bntk/components/stemming-results";
 import TextInput from "@bntk/components/text-input";
+import TokenizationResults from "@bntk/components/tokenization-results";
+import TransliterationResults from "@bntk/components/transliteration-results";
 import { Badge } from "@bntk/components/ui/badge";
 import { Button } from "@bntk/components/ui/button";
 import { Card, CardContent } from "@bntk/components/ui/card";
 import { SampleTexts } from "@bntk/consts/sample-text";
-import { checkWord } from "@bntk/lib/text-analysis/check-word";
-import { findSimilarWords } from "@bntk/lib/text-analysis/find-simmilar-words";
+import { stemWord } from "@bntk/stemming";
+import { tokenizeToWords } from "@bntk/tokenization";
+import { transliterate } from "@bntk/transliteration";
 import {
-  Check,
+  AlignJustify,
   Copy,
+  GitBranchPlus,
   HelpCircle,
-  Link as LinkIcon,
+  Languages,
   RefreshCw,
   Sparkles,
-  Wand2,
+  SplitSquareVertical,
+  User,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -39,34 +45,22 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@bntk/components/ui/tooltip";
-import { usePGlite } from "@electric-sql/pglite-react";
-import Link from "next/link";
 
-const AVAILABLE_TABS = ["grammar", "spelling"];
+const AVAILABLE_TABS = [
+  "tokenization",
+  "stemming",
+  "ner",
+  "pos",
+  "transliteration",
+];
 
-export default function GrammarChecker() {
+export default function TextTools() {
   const [text, setText] = useState("");
-  const [activeTab, setActiveTab] = useState("grammar");
+  const [activeTab, setActiveTab] = useState("tokenization");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [results, setResults] = useState<any>(null);
   const [wordCount, setWordCount] = useState({ words: 0, chars: 0 });
-  const db = usePGlite();
-
-  // Initialize pg_trgm extension
-  useEffect(() => {
-    const initPgTrgm = async () => {
-      try {
-        await db.query(`CREATE EXTENSION IF NOT EXISTS pg_trgm;`);
-      } catch (error) {
-        console.error("Error initializing pg_trgm:", error);
-      }
-    };
-
-    if (db) {
-      initPgTrgm().catch(console.error);
-    }
-  }, [db]);
 
   const handleTextChange = (value: string) => {
     setText(value);
@@ -96,46 +90,73 @@ export default function GrammarChecker() {
       let mockResults;
 
       switch (activeTab) {
-        case "spelling": {
-          const words = text.split(/\s+/).filter((t) => t.length > 0);
-          const misspellings = [];
-
-          for (const word of words) {
-            const exists = await checkWord(db, word);
-            if (!exists) {
-              const suggestions = await findSimilarWords(db, word);
-              misspellings.push({
-                word,
-                suggestions,
-                index: text.indexOf(word),
-              });
-            }
-          }
-
+        case "tokenization":
           mockResults = {
-            misspellings,
+            tokens: tokenizeToWords(text),
           };
           break;
-        }
-        case "grammar":
+        case "stemming":
           mockResults = {
-            corrections: [
+            stems: text
+              .split(/\s+/)
+              .filter((t) => t.length > 0)
+              .map((word) => ({
+                original: word,
+                stem: stemWord(word),
+              })),
+          };
+          break;
+        case "ner":
+          mockResults = {
+            entities: [
               {
-                index: text.indexOf("i am"),
-                suggestion: "I am",
-                type: "capitalization",
+                text: "John Smith",
+                type: "PERSON",
+                start: text.indexOf("John Smith"),
               },
               {
-                index: text.indexOf("dont"),
-                suggestion: "don't",
-                type: "apostrophe",
+                text: "Apple Inc.",
+                type: "ORGANIZATION",
+                start: text.indexOf("Apple Inc."),
               },
               {
-                index: text.indexOf("its"),
-                suggestion: "it's",
-                type: "apostrophe",
+                text: "New York City",
+                type: "LOCATION",
+                start: text.indexOf("New York City"),
               },
+              { text: "Paris", type: "LOCATION", start: text.indexOf("Paris") },
             ],
+          };
+          break;
+        case "pos":
+          mockResults = {
+            tags: text
+              .split(/\s+/)
+              .filter((t) => t.length > 0)
+              .map((word) => {
+                if (word.match(/^[A-Z]/)) return { word, tag: "NNP" };
+                if (word.match(/ing$/)) return { word, tag: "VBG" };
+                if (word.match(/s$/)) return { word, tag: "NNS" };
+                if (word.match(/ed$/)) return { word, tag: "VBD" };
+                if (word.match(/ly$/)) return { word, tag: "RB" };
+                if (["the", "a", "an"].includes(word.toLowerCase()))
+                  return { word, tag: "DT" };
+                if (
+                  ["over", "under", "in", "on", "at"].includes(
+                    word.toLowerCase()
+                  )
+                )
+                  return { word, tag: "IN" };
+                return {
+                  word,
+                  tag: ["NN", "VB", "JJ"][Math.floor(Math.random() * 3)],
+                };
+              }),
+          };
+          break;
+        case "transliteration":
+          mockResults = {
+            transliterated: transliterate(text),
           };
           break;
       }
@@ -157,10 +178,16 @@ export default function GrammarChecker() {
     if (!results) return null;
 
     switch (activeTab) {
-      case "grammar":
-        return <GrammarResults results={results} text={text} />;
-      case "spelling":
-        return <SpellCheckResults results={results} text={text} />;
+      case "tokenization":
+        return <TokenizationResults results={results} />;
+      case "stemming":
+        return <StemmingResults results={results} />;
+      case "ner":
+        return <NerResults results={results} text={text} />;
+      case "pos":
+        return <PosResults results={results} />;
+      case "transliteration":
+        return <TransliterationResults results={results} />;
       default:
         return null;
     }
@@ -168,10 +195,16 @@ export default function GrammarChecker() {
 
   const getTabIcon = (tab: string) => {
     switch (tab) {
-      case "grammar":
-        return <Check className="h-4 w-4 mr-1" />;
-      case "spelling":
-        return <Wand2 className="h-4 w-4 mr-1" />;
+      case "tokenization":
+        return <SplitSquareVertical className="h-4 w-4 mr-1" />;
+      case "stemming":
+        return <GitBranchPlus className="h-4 w-4 mr-1" />;
+      case "ner":
+        return <User className="h-4 w-4 mr-1" />;
+      case "pos":
+        return <AlignJustify className="h-4 w-4 mr-1" />;
+      case "transliteration":
+        return <Languages className="h-4 w-4 mr-1" />;
       default:
         return null;
     }
@@ -179,10 +212,16 @@ export default function GrammarChecker() {
 
   const getTabDescription = (tab: string) => {
     switch (tab) {
-      case "grammar":
-        return "Checks for grammatical errors and suggests corrections.";
-      case "spelling":
-        return "Identifies misspelled words and provides correct spellings.";
+      case "tokenization":
+        return "Breaks text into individual words or tokens.";
+      case "stemming":
+        return "Reduces words to their root or base form.";
+      case "ner":
+        return "Identifies and classifies named entities like people, organizations, and locations.";
+      case "pos":
+        return "Tags words with their part of speech (noun, verb, adjective, etc.).";
+      case "transliteration":
+        return "Converts English text to Bangla script.";
       default:
         return "";
     }
@@ -203,71 +242,62 @@ export default function GrammarChecker() {
 
   return (
     <TooltipProvider>
-      <Card className="w-full max-w-4xl mx-auto mt-20 p-0 shadow-xl border-slate-200 dark:border-slate-700 overflow-hidden">
+      <Card className="w-full max-w-4xl mx-auto p-0 shadow-xl border-slate-200 dark:border-slate-700 overflow-hidden">
         <CardContent className="p-0">
           <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-4 text-white">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Grammar & Spell Check</h2>
-              <div className="flex items-center gap-2">
-                <Link
-                  href="/tools"
-                  className="text-white hover:underline text-sm flex items-center"
-                >
-                  <LinkIcon className="h-4 w-4 mr-1" />
-                  More Tools
-                </Link>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-white hover:bg-white/20"
-                    >
-                      <HelpCircle className="h-5 w-5" />
-                      <span className="sr-only">Help</span>
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Grammar & Spell Check</DialogTitle>
-                      <DialogDescription>
-                        Use these tools to check your text for grammar and
-                        spelling errors.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 mt-4">
-                      <div className="space-y-2">
-                        <h3 className="font-medium">Available Tools:</h3>
-                        <ul className="space-y-2">
-                          {AVAILABLE_TABS.map((tab) => (
-                            <li key={tab} className="flex items-start gap-2">
-                              <div className="mt-0.5">{getTabIcon(tab)}</div>
-                              <div>
-                                <span className="font-medium capitalize">
-                                  {tab}
-                                </span>
-                                <p className="text-sm text-muted-foreground">
-                                  {getTabDescription(tab)}
-                                </p>
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
+              <h2 className="text-xl font-semibold">Text Analysis Tools</h2>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-white hover:bg-white/20"
+                  >
+                    <HelpCircle className="h-5 w-5" />
+                    <span className="sr-only">Help</span>
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Advanced Text Analysis Tools</DialogTitle>
+                    <DialogDescription>
+                      Use these advanced tools to analyze your text in various
+                      ways.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 mt-4">
+                    <div className="space-y-2">
+                      <h3 className="font-medium">Available Tools:</h3>
+                      <ul className="space-y-2">
+                        {AVAILABLE_TABS.map((tab) => (
+                          <li key={tab} className="flex items-start gap-2">
+                            <div className="mt-0.5">{getTabIcon(tab)}</div>
+                            <div>
+                              <span className="font-medium capitalize">
+                                {tab}
+                              </span>
+                              <p className="text-sm text-muted-foreground">
+                                {getTabDescription(tab)}
+                              </p>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
 
           <Tabs
-            defaultValue="grammar"
+            defaultValue="tokenization"
             value={activeTab}
             onValueChange={handleTabChange}
             className="p-6"
           >
-            <TabsList className="grid grid-cols-2 mb-6 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+            <TabsList className="grid grid-cols-3 md:grid-cols-5 mb-6 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
               {AVAILABLE_TABS.map((tab) => (
                 <Tooltip key={tab}>
                   <TooltipTrigger asChild>
@@ -276,7 +306,7 @@ export default function GrammarChecker() {
                       className="flex items-center justify-center transition-all duration-200 data-[state=active]:!bg-white dark:data-[state=active]:!bg-slate-700 data-[state=active]:shadow-md data-[state=active]:font-medium data-[state=active]:text-indigo-600 dark:data-[state=active]:text-indigo-400 data-[state=active]:border-b-2 data-[state=active]:border-indigo-500"
                     >
                       {getTabIcon(tab)}
-                      <span className="capitalize">{tab}</span>
+                      <span className="hidden sm:inline capitalize">{tab}</span>
                     </TabsTrigger>
                   </TooltipTrigger>
                   <TooltipContent>
@@ -291,7 +321,7 @@ export default function GrammarChecker() {
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-medium capitalize flex items-center">
                     {getTabIcon(tab)}
-                    <span>{tab} Check</span>
+                    <span>{tab} Analysis</span>
                   </h3>
                   <div className="flex items-center gap-2">
                     <Tooltip>
@@ -307,7 +337,7 @@ export default function GrammarChecker() {
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>Load a sample text</p>
+                        <p>Load a sample text for this tool</p>
                       </TooltipContent>
                     </Tooltip>
                   </div>
@@ -316,7 +346,17 @@ export default function GrammarChecker() {
                 <TextInput
                   value={text}
                   onChange={handleTextChange}
-                  placeholder={`Enter text to check ${tab}...`}
+                  placeholder={`Enter text to ${
+                    tab === "tokenization"
+                      ? "tokenize"
+                      : tab === "stemming"
+                      ? "find word stems"
+                      : tab === "ner"
+                      ? "identify named entities"
+                      : tab === "transliteration"
+                      ? "transliterate"
+                      : "analyze parts of speech"
+                  }...`}
                 />
 
                 <div className="flex items-center justify-between">
@@ -378,7 +418,17 @@ export default function GrammarChecker() {
                           Analyzing...
                         </span>
                       ) : (
-                        `Check ${tab}`
+                        `Analyze ${
+                          tab === "tokenization"
+                            ? "Tokens"
+                            : tab === "stemming"
+                            ? "Word Stems"
+                            : tab === "ner"
+                            ? "Named Entities"
+                            : tab === "transliteration"
+                            ? "Transliteration"
+                            : "Parts of Speech"
+                        }`
                       )}
                     </Button>
                   </div>
