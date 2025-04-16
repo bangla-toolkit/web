@@ -8,10 +8,18 @@ export function Header() {
     <header className="fixed top-0 left-0 right-0 bg-background/80 backdrop-blur z-50 border-b">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg">
+          <Link href="/" className="flex items-center gap-3">
+            <div>
               <Image
-                src={getBasePath() + "/bangla-toolkit-logo.svg"}
+                className="block dark:hidden"
+                src={getBasePath() + "/logo-dark.svg"}
+                alt="Bangla Toolkit Logo"
+                width={40}
+                height={40}
+              />
+              <Image
+                className="hidden dark:block"
+                src={getBasePath() + "/logo-light.svg"}
                 alt="Bangla Toolkit Logo"
                 width={40}
                 height={40}
@@ -25,7 +33,7 @@ export function Header() {
                 A collection of tools for the Bangla language
               </p>
             </div>
-          </div>
+          </Link>
 
           <div className="flex items-center gap-4">
             <Link

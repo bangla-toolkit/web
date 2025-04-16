@@ -6,19 +6,6 @@ import TextInput from "@bntk/components/text-input";
 import { Badge } from "@bntk/components/ui/badge";
 import { Button } from "@bntk/components/ui/button";
 import { Card, CardContent } from "@bntk/components/ui/card";
-import { SampleTexts } from "@bntk/consts/sample-text";
-import { checkWord } from "@bntk/lib/text-analysis/check-word";
-import { findSimilarWords } from "@bntk/lib/text-analysis/find-simmilar-words";
-import {
-  Check,
-  Copy,
-  HelpCircle,
-  Link as LinkIcon,
-  RefreshCw,
-  Sparkles,
-  Wand2,
-} from "lucide-react";
-import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -39,8 +26,19 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@bntk/components/ui/tooltip";
+import { SampleTexts } from "@bntk/consts/sample-text";
+import { checkWord } from "@bntk/lib/text-analysis/check-word";
+import { findSimilarWords } from "@bntk/lib/text-analysis/find-simmilar-words";
 import { usePGlite } from "@electric-sql/pglite-react";
-import Link from "next/link";
+import {
+  Check,
+  Copy,
+  HelpCircle,
+  RefreshCw,
+  Sparkles,
+  Wand2,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 
 const AVAILABLE_TABS = ["grammar", "spelling"];
 
@@ -203,61 +201,52 @@ export default function GrammarChecker() {
 
   return (
     <TooltipProvider>
-      <Card className="w-full max-w-4xl mx-auto mt-20 p-0 shadow-xl border-slate-200 dark:border-slate-700 overflow-hidden">
+      <Card className="w-full max-w-4xl mx-auto p-0 shadow-xl border-slate-200 dark:border-slate-700 overflow-hidden">
         <CardContent className="p-0">
           <div className="bg-gradient-to-r from-indigo-500 to-purple-600 p-4 text-white">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold">Grammar & Spell Check</h2>
-              <div className="flex items-center gap-2">
-                <Link
-                  href="/tools"
-                  className="text-white hover:underline text-sm flex items-center"
-                >
-                  <LinkIcon className="h-4 w-4 mr-1" />
-                  More Tools
-                </Link>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-white hover:bg-white/20"
-                    >
-                      <HelpCircle className="h-5 w-5" />
-                      <span className="sr-only">Help</span>
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Grammar & Spell Check</DialogTitle>
-                      <DialogDescription>
-                        Use these tools to check your text for grammar and
-                        spelling errors.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 mt-4">
-                      <div className="space-y-2">
-                        <h3 className="font-medium">Available Tools:</h3>
-                        <ul className="space-y-2">
-                          {AVAILABLE_TABS.map((tab) => (
-                            <li key={tab} className="flex items-start gap-2">
-                              <div className="mt-0.5">{getTabIcon(tab)}</div>
-                              <div>
-                                <span className="font-medium capitalize">
-                                  {tab}
-                                </span>
-                                <p className="text-sm text-muted-foreground">
-                                  {getTabDescription(tab)}
-                                </p>
-                              </div>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-white hover:bg-white/20"
+                  >
+                    <HelpCircle className="h-5 w-5" />
+                    <span className="sr-only">Help</span>
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Grammar & Spell Check</DialogTitle>
+                    <DialogDescription>
+                      Use these tools to check your text for grammar and
+                      spelling errors.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 mt-4">
+                    <div className="space-y-2">
+                      <h3 className="font-medium">Available Tools:</h3>
+                      <ul className="space-y-2">
+                        {AVAILABLE_TABS.map((tab) => (
+                          <li key={tab} className="flex items-start gap-2">
+                            <div className="mt-0.5">{getTabIcon(tab)}</div>
+                            <div>
+                              <span className="font-medium capitalize">
+                                {tab}
+                              </span>
+                              <p className="text-sm text-muted-foreground">
+                                {getTabDescription(tab)}
+                              </p>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
 

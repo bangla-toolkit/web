@@ -34,13 +34,21 @@ export const PGLiteContextProvider = (props: { children: React.ReactNode }) => {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-gray-50/75 text-gray-500 dark:bg-gray-900 dark:text-gray-400">
         <div className="flex flex-col gap-4 items-center justify-center">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg">
+          <div className="flex items-end gap-3">
+            <div>
               <Image
-                src={getBasePath() + "/bangla-toolkit-logo.svg"}
+                className="block dark:hidden"
+                src={getBasePath() + "/logo-dark.svg"}
                 alt="Bangla Toolkit Logo"
-                width={80}
-                height={80}
+                width={50}
+                height={50}
+              />
+              <Image
+                className="hidden dark:block"
+                src={getBasePath() + "logo-light.svg"}
+                alt="Bangla Toolkit Logo"
+                width={50}
+                height={50}
               />
             </div>
             <h1 className="text-2xl md:text-5xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">

@@ -19,7 +19,7 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <PGLiteContextProvider>
             <Header />
-            <main className="pt-20">{children}</main>
+            <main className="pt-20 mt-20 px-2">{children}</main>
           </PGLiteContextProvider>
         </ThemeProvider>
       </body>
