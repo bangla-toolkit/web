@@ -10,11 +10,11 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@bntk/ner": "^0.0.1",
-    "@bntk/pos": "^0.0.1",
-    "@bntk/stemming": "^0.0.1",
-    "@bntk/tokenization": "^0.0.3",
-    "@bntk/transliteration": "^0.0.0",
+    "@bntk/ner": "^0.0.1-alpha.1",
+    "@bntk/pos": "^0.0.1-alpha.1",
+    "@bntk/stemming": "^0.0.1-alpha.1",
+    "@bntk/tokenization": "^0.0.3-alpha.1",
+    "@bntk/transliteration": "^0.0.0-alpha.2",
     "@electric-sql/pglite": "^0.2.17",
     "@electric-sql/pglite-react": "^0.2.17",
     "@radix-ui/react-dialog": "^1.1.6",

@@ -1,6 +1,6 @@
 "use client";
 
-import { getDbClient, initDb } from "@bntk/db";
+import { getDbClient, populateSchema } from "@bntk/db";
 import { seedDatabase } from "@bntk/db/seed";
 import { PGliteProvider } from "@electric-sql/pglite-react";
 import { useEffect, useState } from "react";
@@ -14,18 +14,28 @@ export const PGLiteContextProvider = (props: { children: React.ReactNode }) => {
   const [db, setDb] = useState<PGliteWithLive>();
   const [progress, setProgress] = useState(0);
 
+  const updateProgress = () => {
+    setProgress((prev) => prev + 5);
+  };
+
   useEffect(() => {
     setProgress(10);
     const initialize = async () => {
-      setProgress(25);
-      const client = await getDbClient();
-      setProgress(50);
-      await initDb();
-      setProgress(80);
-      await seedDatabase();
-      setProgress(100);
-      await delay(100);
-      setDb(client);
+      try {
+        console.time("initialize");
+        setProgress(25);
+        const client = await getDbClient();
+        setProgress(40);
+        await populateSchema(client);
+        setProgress(60);
+        await seedDatabase(client, updateProgress);
+        setProgress(100);
+        await delay(100);
+        setDb(client);
+        console.timeEnd("initialize");
+      } catch (error) {
+        console.error("Error initializing database:", error);
+      }
     };
     initialize();
   }, []);

@@ -27,7 +27,6 @@ import {
   TooltipTrigger,
 } from "@bntk/components/ui/tooltip";
 import { SampleTexts } from "@bntk/consts/sample-text";
-import { checkWord } from "@bntk/lib/text-analysis/check-word";
 import { findSimilarWords } from "@bntk/lib/text-analysis/find-simmilar-words";
 import { usePGlite } from "@electric-sql/pglite-react";
 import {
@@ -38,7 +37,25 @@ import {
   Sparkles,
   Wand2,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+
+interface SpellingComponentProps {
+  misspellings: Array<{
+    word: string;
+    suggestions: string[];
+    index: number;
+  }>;
+}
+
+interface GrammarComponentProps {
+  corrections: Array<{
+    index: number;
+    suggestion: string;
+    type: string;
+  }>;
+}
+
+type CheckResults = SpellingComponentProps | GrammarComponentProps;
 
 const AVAILABLE_TABS = ["grammar", "spelling"];
 
@@ -46,25 +63,10 @@ export default function GrammarChecker() {
   const [text, setText] = useState("");
   const [activeTab, setActiveTab] = useState("grammar");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [results, setResults] = useState<any>(null);
+  const [analyzeProgress, setAnalyzeProgress] = useState(0);
+  const [results, setResults] = useState<CheckResults | null>(null);
   const [wordCount, setWordCount] = useState({ words: 0, chars: 0 });
   const db = usePGlite();
-
-  // Initialize pg_trgm extension
-  useEffect(() => {
-    const initPgTrgm = async () => {
-      try {
-        await db.query(`CREATE EXTENSION IF NOT EXISTS pg_trgm;`);
-      } catch (error) {
-        console.error("Error initializing pg_trgm:", error);
-      }
-    };
-
-    if (db) {
-      initPgTrgm().catch(console.error);
-    }
-  }, [db]);
 
   const handleTextChange = (value: string) => {
     setText(value);
@@ -84,35 +86,69 @@ export default function GrammarChecker() {
     });
     setResults(null);
   };
+  const processInBatches = async (words: string[], batchSize = 5) => {
+    const results = [];
+    const totalBatches = Math.ceil(words.length / batchSize);
 
+    for (let i = 0; i < words.length; i += batchSize) {
+      const batch = words.slice(i, i + batchSize);
+      const batchText = batch.join(" ");
+      const suggestions = await findSimilarWords(db, batchText);
+      results.push(...suggestions);
+
+      // Update progress
+      const currentBatch = Math.floor(i / batchSize) + 1;
+      setAnalyzeProgress(Math.round((currentBatch / totalBatches) * 100));
+
+      // Give UI a chance to update
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    return results;
+  };
   const analyzeText = async () => {
     if (!text.trim()) return;
 
-    setIsAnalyzing(true);
-
     try {
-      let mockResults;
+      setIsAnalyzing(true);
+      setAnalyzeProgress(0);
+      let mockResults: CheckResults = {
+        misspellings: [],
+      };
 
       switch (activeTab) {
         case "spelling": {
-          const words = text.split(/\s+/).filter((t) => t.length > 0);
-          const misspellings = [];
+          // Process words in batches to keep UI responsive
+          const words = text.split(/\s+/).filter((w) => w.trim().length > 0);
+          const suggestions = await processInBatches(words);
 
-          for (const word of words) {
-            const exists = await checkWord(db, word);
-            if (!exists) {
-              const suggestions = await findSimilarWords(db, word);
-              misspellings.push({
-                word,
-                suggestions,
-                index: text.indexOf(word),
-              });
-            }
-          }
+          // Transform suggestions into the format expected by SpellCheckResults
+          const misspellings = suggestions.reduce(
+            (
+              acc: Array<{
+                word: string;
+                suggestions: string[];
+                index: number;
+              }>,
+              suggestion
+            ) => {
+              const existingWord = acc.find(
+                (m) => m.word === suggestion.original
+              );
+              if (existingWord) {
+                existingWord.suggestions.push(suggestion.suggestion);
+              } else {
+                acc.push({
+                  word: suggestion.original,
+                  suggestions: [suggestion.suggestion],
+                  index: text.indexOf(suggestion.original),
+                });
+              }
+              return acc;
+            },
+            []
+          );
 
-          mockResults = {
-            misspellings,
-          };
+          mockResults = { misspellings };
           break;
         }
         case "grammar":
@@ -139,9 +175,9 @@ export default function GrammarChecker() {
       }
 
       setResults(mockResults);
-      setIsAnalyzing(false);
     } catch (error) {
       console.error("Error analyzing text: ", error);
+    } finally {
       setIsAnalyzing(false);
     }
   };
@@ -150,15 +186,24 @@ export default function GrammarChecker() {
     setActiveTab(value);
     setResults(null);
   };
-
   const renderResults = () => {
     if (!results) return null;
 
     switch (activeTab) {
       case "grammar":
-        return <GrammarResults results={results} text={text} />;
+        return (
+          <GrammarResults
+            results={results as GrammarComponentProps}
+            text={text}
+          />
+        );
       case "spelling":
-        return <SpellCheckResults results={results} text={text} />;
+        return (
+          <SpellCheckResults
+            results={results as SpellingComponentProps}
+            text={text}
+          />
+        );
       default:
         return null;
     }
@@ -341,7 +386,7 @@ export default function GrammarChecker() {
                       disabled={!text.trim() || isAnalyzing}
                       className="px-4 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 transition-all duration-300"
                     >
-                      <Sparkles className="mr-2 h-4 w-4" />
+                      <Sparkles className="mr-2 h-4 w-4" />{" "}
                       {isAnalyzing ? (
                         <span className="flex items-center">
                           <svg
@@ -364,7 +409,7 @@ export default function GrammarChecker() {
                               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                             ></path>
                           </svg>
-                          Analyzing...
+                          Analyzing... {analyzeProgress}%
                         </span>
                       ) : (
                         `Check ${tab}`
