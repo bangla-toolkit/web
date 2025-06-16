@@ -57,11 +57,11 @@ interface GrammarComponentProps {
 
 type CheckResults = SpellingComponentProps | GrammarComponentProps;
 
-const AVAILABLE_TABS = ["grammar", "spelling"];
+const AVAILABLE_TABS = ["spelling", "grammar"];
 
 export default function GrammarChecker() {
   const [text, setText] = useState("");
-  const [activeTab, setActiveTab] = useState("grammar");
+  const [activeTab, setActiveTab] = useState("spelling");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analyzeProgress, setAnalyzeProgress] = useState(0);
   const [results, setResults] = useState<CheckResults | null>(null);
@@ -86,25 +86,7 @@ export default function GrammarChecker() {
     });
     setResults(null);
   };
-  const processInBatches = async (words: string[], batchSize = 5) => {
-    const results = [];
-    const totalBatches = Math.ceil(words.length / batchSize);
 
-    for (let i = 0; i < words.length; i += batchSize) {
-      const batch = words.slice(i, i + batchSize);
-      const batchText = batch.join(" ");
-      const suggestions = await findSimilarWords(db, batchText);
-      results.push(...suggestions);
-
-      // Update progress
-      const currentBatch = Math.floor(i / batchSize) + 1;
-      setAnalyzeProgress(Math.round((currentBatch / totalBatches) * 100));
-
-      // Give UI a chance to update
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    }
-    return results;
-  };
   const analyzeText = async () => {
     if (!text.trim()) return;
 
@@ -117,9 +99,7 @@ export default function GrammarChecker() {
 
       switch (activeTab) {
         case "spelling": {
-          // Process words in batches to keep UI responsive
-          const words = text.split(/\s+/).filter((w) => w.trim().length > 0);
-          const suggestions = await processInBatches(words);
+          const suggestions = await findSimilarWords(db, text);
 
           // Transform suggestions into the format expected by SpellCheckResults
           const misspellings = suggestions.reduce(
@@ -296,7 +276,7 @@ export default function GrammarChecker() {
           </div>
 
           <Tabs
-            defaultValue="grammar"
+            defaultValue="spelling"
             value={activeTab}
             onValueChange={handleTabChange}
             className="p-6"
@@ -384,7 +364,7 @@ export default function GrammarChecker() {
                     <Button
                       onClick={analyzeText}
                       disabled={!text.trim() || isAnalyzing}
-                      className="px-4 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 transition-all duration-300"
+                      className="px-4 bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-600 hover:to-purple-700 transition-all duration-300 text-white"
                     >
                       <Sparkles className="mr-2 h-4 w-4" />{" "}
                       {isAnalyzing ? (
