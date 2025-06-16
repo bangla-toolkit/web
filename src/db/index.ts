@@ -36,6 +36,9 @@ export async function populateSchema(dbClient: PGliteWithLive) {
       await dbClient.exec(
         "DROP TABLE IF EXISTS words CASCADE; DROP TABLE IF EXISTS romanized_words CASCADE;"
       );
+      console.warn("Existing tables dropped, reapplying schema.");
+      // Reapply the schema
+      return populateSchema(dbClient);
     }
     console.error("Database schema application error:", error);
   }
